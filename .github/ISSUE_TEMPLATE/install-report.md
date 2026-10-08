@@ -1,7 +1,7 @@
 ---
 name: Install report
 about: How setup went on your machine (filled in by your Claude, sent only after you approve the text)
-title: "[install report] <Windows version>, Claude Desktop <version>: <worked | worked after changes | failed>"
+title: "[install report] <Windows version>, Claude Desktop <version>: <worked | worked after changes | partly checked | failed>"
 ---
 
 <!--
@@ -39,4 +39,4 @@ folder or project names, screenshots or logs. Write paths as %USERPROFILE%, %LOC
   - automatic checks: 
 
 ## What had to be changed
-<!-- Each change: file, what, why. A minimal diff is fine. "Nothing" if nothing. -->
+<!-- Each change: file, what, why. A minimal diff is fine. "Nothing" if nothing. Anything not run: "not run". -->

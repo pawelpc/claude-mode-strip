@@ -44,15 +44,27 @@ lines what it does. It should match README.md: read-only UI Automation, one clic
 no network. If you find anything else, stop and tell the user.
 
 ## Step 3: Install the Python packages
+First check, read-only and offline, whether they are already there:
+```
+python -m pip show uiautomation pillow
+```
+If both are listed (`uiautomation` must be 2.0.29, `pillow` 10 or newer), skip the install and tell the user.
+Ignore pip's "a new release of pip is available" notice; upgrading pip is not part of this setup.
+
+Mention once that the packages can go into a virtual environment in this folder instead of their normal
+Python. The default is their normal Python.
+
 **ASK FIRST:** "May I run `python -m pip install -r requirements.txt`? It downloads `uiautomation` (reads
 window controls) and `pillow` (only used by the guided test to read the strip's colors) from PyPI and
 installs them into your Python. This uses the network and writes to Python's package folder."
 ```
 python -m pip install -r requirements.txt
 ```
-If the user prefers a virtual environment, create it inside this folder (`python -m venv .venv`, which also
-needs this ask first) and use `.venv\Scripts\python.exe` and `.venv\Scripts\pythonw.exe` from then on.
-Record that in `install-notes.md`, and adjust the scripts as in step 5, row 9.
+If the user wants a virtual environment, **ASK FIRST:** "May I create a virtual environment with
+`python -m venv .venv` in this folder and install the packages there instead of your normal Python? It
+writes a `.venv` folder here and downloads the packages from PyPI." Then use `.venv\Scripts\python.exe` and
+`.venv\Scripts\pythonw.exe` from then on. Record that in `install-notes.md`, and adjust the scripts as in
+step 5, row 9.
 
 ## Step 4: Unit tests and locator check (read-only)
 ```
@@ -63,10 +75,14 @@ python tools\check_locator.py
 - `check_locator.py` runs the program's own discovery once against the open Claude window and ends with
   `OK` or `NOT OK` plus which assumption failed. Run it with Claude Desktop **open, in Code mode**, then ask
   the user to switch to the **Claude (Cowork)** mode button and run it again. Both must say `OK`.
-- Its output lists the names of the buttons under the input box. Those can include folder or project names,
-  so **don't put that output into the report.** Summarize it as OK / NOT OK and which assumption.
+- If Claude is in Cowork mode when you start, run it there first and then ask for Code mode.
+- Its output lists the names of the buttons under the input box. Those can include folder or project names
+  and the usage button's text (context and plan-limit figures), so **don't put that output into the
+  report.** Summarize it as OK / NOT OK and which assumption.
 
-If both are `OK`, go to step 6. Otherwise, step 5.
+If both are `OK`, go to step 6. If one says `NOT OK`, go to step 5. If the user didn't want to switch modes,
+continue with the mode that was checked, tell the user the other mode is untested, and write
+"not checked" for it in the report.
 
 ## Step 5: Adapt to this machine (only if something didn't hold)
 The program was built on one machine: Windows 10 Home 22H2, 100 % scaling, light and dark theme, English
@@ -83,7 +99,7 @@ live:
 | 6 | Model button name starts with `Model: `; effort button (Code mode) with `Effort: ` | `src/strip_uia.py` `discover()`, `src/strip_core.py` `strip_text()` | Other UI languages: adjust both prefixes. Keep the unit tests passing (update `tests/test_core.py` only if the text format changes on purpose). |
 | 7 | Theme: "dark" when both pixels 12 px left and right of the container (at its vertical centre) have luma < 110, for 3 samples in a row (one every 2 s) | `src/strip_uia.py` `Tracker._loop()` | `check_locator.py` prints both samples. If a sidebar or other panel sits there, move the sample points. |
 | 8 | DPI: the process is per-monitor DPI aware. Strip size, font (Segoe UI 12 px semibold), inset and radius are scaled by the window's DPI. **Only tested at 100 %.** | `src/winutil.py` `set_dpi_aware()`, `src/strip_core.py` `place()`, `src/strip_overlay.py` | Watch the guided test at your scaling. Report anything misplaced or clipped. |
-| 9 | `tools\install.ps1` and `tools\start.ps1` launch `pythonw` found on PATH (`Get-Command pythonw`), and `install.ps1` checks the packages with `python` | `tools/install.ps1`, `tools/start.ps1` | If `pythonw` is missing, or is a different Python from the one that has the packages, use the full path to `pythonw.exe` next to `python -c "import sys; print(sys.executable)"`. |
+| 9 | `tools\install.ps1` and `tools\start.ps1` launch `pythonw` found on PATH (`Get-Command pythonw`); `install.ps1` checks the packages with `python`; `tools\guided_test.ps1` runs `python` for the strip, `strip_state.py` and `summarize_guided.py` | `tools/install.ps1`, `tools/start.ps1`, `tools/guided_test.ps1` | If `pythonw` is missing, or is a different Python from the one that has the packages, use the full path to `pythonw.exe` next to `python -c "import sys; print(sys.executable)"`. |
 
 Rules for adapting:
 - Change as little as possible, and only for an assumption that actually failed here.
@@ -94,6 +110,17 @@ Rules for adapting:
 - If you can't make `check_locator.py` say `OK`, stop here. Offer the report (step 10) with what you found.
 
 ## Step 6: Try it
+Only one strip can run per log-on session, whichever folder it comes from. Check first (read-only):
+```
+Get-CimInstance Win32_Process | Where-Object { $_.Name -match 'python' -and $_.CommandLine -like '*src\main.py*' } | Select-Object ProcessId, CommandLine
+```
+A match whose command line isn't this program (another project's `src\main.py`) can be ignored. If a strip
+from a **different** folder is running, tell the user. This folder's copy can't start until that one is
+stopped with that folder's own `tools\stop.ps1`. Ask the user before stopping it. **If they say no, skip
+the rest of step 6 and step 7**: everything you'd check would be the other copy, not this folder's code.
+Write "not run: another copy of the strip was running" for those items in the report, and go to step 9
+or 10. Keep the command line out of the report; it contains a path.
+
 **ASK FIRST:** "May I start the strip now? It runs in the background with no console window (`pythonw`),
 until you stop it or log off. It does not start at log-in yet. If it hits an error it writes
 `%LOCALAPPDATA%\DesktopColorMod\error.log`."
@@ -101,7 +128,18 @@ until you stop it or log off. It does not start at log-in yet. If it hits an err
 powershell -ExecutionPolicy Bypass -File tools\start.ps1
 ```
 `-ExecutionPolicy Bypass` applies only to that one PowerShell process; it does not change any system
-setting. Ask the user whether the strip appears and reads correctly in Code mode and in Cowork mode.
+setting. `start.ps1` reports which copy is running afterwards: "running from this folder", or "NOT
+started" with the reason. **Only if it says "running from this folder"**, check the strip's window
+objectively (read-only). `strip_state.py` reads whichever strip is on screen, so after "NOT started" its
+output belongs to another copy and proves nothing about this one.
+```
+python -W ignore tools\strip_state.py try
+```
+`strip.visible` and `owner_is_claude` must be true, `ex_transparent` and `ex_noactivate` true,
+`hit_test.returns_strip` false (click-through), `foreground.is_strip` false (it never takes focus), and
+`closest_spec_row` should show deviations of 3 or less. Its output includes the title of the window in
+front, so keep it out of the report. Then ask the user whether the strip appears and reads correctly in
+Code mode and in Cowork mode.
 To stop it at any time:
 ```
 powershell -ExecutionPolicy Bypass -File tools\stop.ps1
@@ -116,9 +154,11 @@ powershell -ExecutionPolicy Bypass -File tools\guided_test.ps1
 Tell them what it does first: it restarts the strip as a test copy with an event log, walks through 13
 short steps (mode switch, typing, resize, move, maximize, covering with another app, minimize, optional
 second monitor and theme, click-through, 60 s idle CPU), and after each step reads the strip's own window
-(colors, click-through, focus). It takes no screenshots and sends nothing. It writes only to
-`test-output\guided-<date>\` in this folder, and restarts the strip at the end if it was running before.
-It needs `pillow` (step 3).
+(colors, click-through, focus). It takes no full screenshots: it reads only the pixels inside the strip,
+in memory. It sends nothing. It writes only to `test-output\guided-<date>\` in this folder (`states.jsonl`
+there includes the title of the window in front at each step; `summary.md` leaves titles out), and
+restarts the strip at the end if it was running before. It needs `pillow` (step 3). If a strip from a
+different folder is running, it stops with a message; see step 6.
 
 When they're done, read `test-output\guided-<date>\summary.md`. A `FAIL` or a "took focus: YES" is a
 problem: look at the step, go back to step 5 if it points to an assumption, and rerun. Keep the "Report
@@ -129,6 +169,13 @@ Same rules as step 5. Record every change. Rerun the unit tests, `check_locator.
 guided-test steps (the user reruns the whole guided test; it takes about 5 minutes).
 
 ## Step 9: Start at log-in (optional)
+First check, read-only, whether a shortcut with this name already exists (e.g. from a copy in another
+folder). If it does, tell the user where it points. Installing replaces it, so that other copy would no
+longer start at log-in. Also tell the user if this folder is in a temporary location (e.g. under `%TEMP%`):
+the shortcut points here and breaks if the folder is cleaned up.
+```
+$l = Join-Path ([Environment]::GetFolderPath('Startup')) 'Desktop Color Mod Strip.lnk'; if (Test-Path $l) { (New-Object -ComObject WScript.Shell).CreateShortcut($l).Arguments } else { 'no shortcut yet' }
+```
 **ASK FIRST:** "May I install it to start when you log in? This creates one shortcut,
 `Desktop Color Mod Strip.lnk`, in your Startup folder (`%APPDATA%\Microsoft\Windows\Start
 Menu\Programs\Startup`), outside this project folder. It needs no admin rights. It also starts the strip
@@ -144,24 +191,34 @@ Offer once: "Would you like to send an install report to the project? It helps t
 needed changes. I'll show you the exact text first, and nothing is sent unless you say yes."
 
 If yes, write the draft to `test-output\install-report.md`, using `.github/ISSUE_TEMPLATE/install-report.md`
-(everything below its front matter; fill in the title separately). **Only these fields:**
+(everything below its front matter). The title is separate:
+`[install report] <Windows version>, Claude Desktop <version>: <outcome>`, where outcome is one of
+`worked` (strip ran from this folder and everything checked passed, nothing changed),
+`worked after changes` (same, with changes from step 5/8), `partly checked` (some checks not run), or
+`failed`. **Only these fields:**
 - Windows version and build, Claude Desktop version, Python version (and whether it's Store Python),
-  display scaling per monitor, Claude theme, monitor count: from step 1 and the user.
+  display scaling per monitor, monitor count: from step 1. The Claude Desktop version is the `Claude.exe`
+  file version that `system_info.py` prints; use it as is. Claude theme: from the user, or from
+  `check_locator.py`'s theme samples (step 4).
 - Unit test result, `check_locator.py` OK / NOT OK (and which assumption): from step 4.
 - Which guided-test steps passed / failed / n/a and the idle CPU: copy the "Report lines" from
   `summary.md`, not the notes.
-- What had to be changed: from `install-notes.md`, described or as a minimal diff.
+- What had to be changed: from `install-notes.md`, described or as a minimal diff. Write "Nothing" if
+  `install-notes.md` doesn't exist.
+- Anything that wasn't run or checked: write "not run" or "not checked" in its place, with the reason in a
+  few words ("user declined", "another copy of the strip was running"). Never leave a field out and never
+  guess.
 
 Before showing it, scrub it. Replace any user name, folder path, host name, email, window title, folder or
 project name, or other identifier with a placeholder: `%USERPROFILE%`, `%LOCALAPPDATA%`,
 `<project folder>`, `<name>`. Paths inside diffs too. No screenshots, logs or command output beyond the
 fields above.
 
-Then **show the user the complete final title and body, exactly as they will be sent**, and ask:
-"Send this as a public issue on github.com/pawelpc/claude-mode-strip? (yes / no / edit)". If they ask for
-edits, apply them and show the whole text again. Send nothing without an explicit yes to the final text.
-
-**ASK FIRST** (network): once they say yes, send it with one of these:
+**ASK FIRST** (network): **show the user the complete final title and body, exactly as they will be
+sent**, and ask: "Send this as a public issue on github.com/pawelpc/claude-mode-strip? This posts it
+publicly over the network. (yes / no / edit)". If they ask for edits, apply them and show the whole text
+again. Send nothing without an explicit yes to the final text. That yes covers sending this text by one of
+the two ways below, nothing else:
 - If the GitHub CLI is installed and signed in (ask before checking: `gh auth status` contacts GitHub):
   ```
   gh issue create --repo pawelpc/claude-mode-strip --title "<title>" --body-file test-output\install-report.md
@@ -173,6 +230,10 @@ edits, apply them and show the whole text again. Send nothing without an explici
   python -c "import sys, urllib.parse as u; b = open(sys.argv[1], encoding='utf-8').read(); print('https://github.com/pawelpc/claude-mode-strip/issues/new?title=' + u.quote(sys.argv[2]) + '&body=' + u.quote(b))" test-output\install-report.md "<title>"
   ```
   Building the link is local; opening it is the user's action.
+
+## Before you finish
+Tell the user whether the strip is running and from which folder, and whether it will start at log-in.
+If you started it only to try it and they don't want it running, stop it with `tools\stop.ps1`.
 
 ## Uninstall
 **ASK FIRST:** "May I uninstall? It stops the strip, deletes the Startup shortcut and the

@@ -3,7 +3,8 @@
 # It walks you through ~13 short steps. After each one, come back here and answer y / n / na.
 # What it does: stops the strip if it is running from this folder, starts a test copy with an event
 # log, and after each step reads the strip's own window (position, colors, click-through) with
-# tools\strip_state.py. It takes NO screenshots and sends nothing anywhere.
+# tools\strip_state.py. It takes no full screenshots (only the strip's own pixels, read in memory) and sends
+# nothing anywhere. states.jsonl includes the title of the window in front at each step; summary.md does not.
 # Output: test-output\guided-<date>\ inside this folder (summary.md is the part to read).
 # If the strip was running before the test, it is started again at the end.
 
