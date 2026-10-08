@@ -39,7 +39,7 @@ python -m unittest tests.test_core
 python tools\check_locator.py
 powershell -ExecutionPolicy Bypass -File tools\start.ps1
 ```
-`check_locator.py` must end with `OK`. If it doesn't, see "Where the machine-specific assumptions live" in SETUP.md.
+`check_locator.py` must end with `OK`. If it doesn't, see "Step 5: Adapt to this machine" in SETUP.md.
 
 Start automatically at log-in (adds one shortcut, `Desktop Color Mod Strip.lnk`, to your user Startup folder; no admin needed):
 ```

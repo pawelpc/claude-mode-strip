@@ -80,9 +80,11 @@ python tools\check_locator.py
   and the usage button's text (context and plan-limit figures), so **don't put that output into the
   report.** Summarize it as OK / NOT OK and which assumption.
 
-If both are `OK`, go to step 6. If one says `NOT OK`, go to step 5. If the user didn't want to switch modes,
-continue with the mode that was checked, tell the user the other mode is untested, and write
-"not checked" for it in the report.
+Then:
+- If one says `NOT OK`, go to step 5.
+- Otherwise go to step 6. That covers both modes `OK`, and the case where the user didn't want to switch
+  modes: then tell them the other mode is untested, and write "not checked (user declined)" for it in
+  the report.
 
 ## Step 5: Adapt to this machine (only if something didn't hold)
 The program was built on one machine: Windows 10 Home 22H2, 100 % scaling, light and dark theme, English
@@ -135,11 +137,12 @@ output belongs to another copy and proves nothing about this one.
 ```
 python -W ignore tools\strip_state.py try
 ```
-`strip.visible` and `owner_is_claude` must be true, `ex_transparent` and `ex_noactivate` true,
-`hit_test.returns_strip` false (click-through), `foreground.is_strip` false (it never takes focus), and
-`closest_spec_row` should show deviations of 3 or less. Its output includes the title of the window in
-front, so keep it out of the report. Then ask the user whether the strip appears and reads correctly in
-Code mode and in Cowork mode.
+`strip.visible` must be true (`"strip": "no overlay window found"` means no strip window owned by Claude
+exists), `ex_transparent` and `ex_noactivate` true, `hit_test.returns_strip` false (click-through),
+`foreground.is_strip` false (it never takes focus), and `closest_spec_row` should show `bg_dev` and
+`text_dev` of 3 or less. Its output includes the title of the window in front, so keep it out of the
+report. Then ask the user whether the strip appears and reads correctly. Ask them to switch to the other
+mode (Code / Claude) and look again; if they decline, that mode is "not checked (user declined)".
 To stop it at any time:
 ```
 powershell -ExecutionPolicy Bypass -File tools\stop.ps1
@@ -192,17 +195,20 @@ needed changes. I'll show you the exact text first, and nothing is sent unless y
 
 If yes, write the draft to `test-output\install-report.md`, using `.github/ISSUE_TEMPLATE/install-report.md`
 (everything below its front matter). The title is separate:
-`[install report] <Windows version>, Claude Desktop <version>: <outcome>`, where outcome is one of
-`worked` (strip ran from this folder and everything checked passed, nothing changed),
-`worked after changes` (same, with changes from step 5/8), `partly checked` (some checks not run), or
-`failed`. **Only these fields:**
+`[install report] <Windows product and release, e.g. Windows 10 Home 22H2>, Claude Desktop <version>: <outcome>`.
+Pick the first outcome that applies: `failed` (something checked failed and wasn't fixed),
+`partly checked` (any check or guided-test step not run), `worked after changes` (all passed, with
+changes from step 5/8), `worked` (all passed, nothing changed). **Only these fields:**
 - Windows version and build, Claude Desktop version, Python version (and whether it's Store Python),
   display scaling per monitor, monitor count: from step 1. The Claude Desktop version is the `Claude.exe`
   file version that `system_info.py` prints; use it as is. Claude theme: from the user, or from
   `check_locator.py`'s theme samples (step 4).
 - Unit test result, `check_locator.py` OK / NOT OK (and which assumption): from step 4.
+- Step 6 result: started from this folder or not; the `strip_state.py` checks passed or which failed; what
+  the user saw, per mode.
 - Which guided-test steps passed / failed / n/a and the idle CPU: copy the "Report lines" from
-  `summary.md`, not the notes.
+  `summary.md`, not the notes. If the guided test wasn't run, replace the step list with one line
+  "not run (reason)".
 - What had to be changed: from `install-notes.md`, described or as a minimal diff. Write "Nothing" if
   `install-notes.md` doesn't exist.
 - Anything that wasn't run or checked: write "not run" or "not checked" in its place, with the reason in a

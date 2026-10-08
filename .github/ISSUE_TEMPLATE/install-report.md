@@ -21,7 +21,8 @@ folder or project names, screenshots or logs. Write paths as %USERPROFILE%, %LOC
 ## Result
 - Unit tests (`python -m unittest tests.test_core`): pass / fail
 - `tools\check_locator.py`: OK / NOT OK (which assumption)
-- Guided test steps (from the "Report lines" in `test-output\...\summary.md`):
+- Try it (SETUP step 6): started from this folder yes / no; `strip_state.py` checks pass / fail (which); Code mode looks right: yes / no / not checked; Cowork mode looks right: yes / no / not checked
+- Guided test steps (from the "Report lines" in `test-output\...\summary.md`; if not run, replace this list with one line "not run (reason)"):
   - s01: 
   - s02: 
   - s03: 
