@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+# local outputs: guided test results, logs, your Claude's notes for the install report
+test-output/
+*.log
+*.jsonl
+install-notes.md
